@@ -100,6 +100,65 @@ fn concat_merge(_: &[u8], existing_val: Option<&[u8]>, operands: &mut MergeOpera
 }
 
 #[test]
+fn test_ingest_external_files() {
+    let path = tempdir_with_prefix("_rust_rocksdb_ingest_sst");
+    let mut db = create_default_database(&path);
+    db.create_cf("cf1").unwrap();
+    db.create_cf("cf2").unwrap();
+    let cf1 = db.cf_handle("cf1").unwrap();
+    let cf2 = db.cf_handle("cf2").unwrap();
+    let gen_path = tempdir_with_prefix("_rust_rocksdb_ingest_sst_gen");
+    let test_sstfile1_1 = gen_path.path().join("test_sstfile1_1");
+    let test_sstfile1_2 = gen_path.path().join("test_sstfile1_2");
+    let test_sstfile2_1 = gen_path.path().join("test_sstfile2_1");
+    let test_sstfile2_2 = gen_path.path().join("test_sstfile2_2");
+
+    gen_sst(
+        db.get_options(),
+        Some(cf1),
+        test_sstfile1_1.to_str().unwrap(),
+        &[(b"k1", b"v1"), (b"k2", b"v2")],
+    );
+    gen_sst(
+        db.get_options(),
+        Some(cf1),
+        test_sstfile1_2.to_str().unwrap(),
+        &[(b"k3", b"v3"), (b"k4", b"v4")],
+    );
+    gen_sst(
+        db.get_options(),
+        Some(cf2),
+        test_sstfile2_1.to_str().unwrap(),
+        &[(b"k1", b"v1"), (b"k2", b"v2")],
+    );
+    gen_sst(
+        db.get_options(),
+        Some(cf2),
+        test_sstfile2_2.to_str().unwrap(),
+        &[(b"k3", b"v3"), (b"k4", b"v4")],
+    );
+
+    let ingest_opt = IngestExternalFileOptions::new();
+    db.ingest_external_files(
+        [
+            (cf1, test_sstfile1_1.to_str().unwrap()),
+            (cf1, test_sstfile1_2.to_str().unwrap()),
+            (cf2, test_sstfile2_1.to_str().unwrap()),
+            (cf2, test_sstfile2_2.to_str().unwrap()),
+        ],
+        &ingest_opt,
+    )
+    .unwrap();
+
+    for cf in [cf1, cf2] {
+        assert_eq!(db.get_cf(cf, b"k1").unwrap().unwrap(), b"v1");
+        assert_eq!(db.get_cf(cf, b"k2").unwrap().unwrap(), b"v2");
+        assert_eq!(db.get_cf(cf, b"k3").unwrap().unwrap(), b"v3");
+        assert_eq!(db.get_cf(cf, b"k4").unwrap().unwrap(), b"v4");
+    }
+}
+
+#[test]
 fn test_ingest_external_file() {
     let path = tempdir_with_prefix("_rust_rocksdb_ingest_sst");
     let mut db = create_default_database(&path);

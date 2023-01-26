@@ -119,6 +119,8 @@ typedef struct crocksdb_envoptions_t crocksdb_envoptions_t;
 typedef struct crocksdb_sequential_file_t crocksdb_sequential_file_t;
 typedef struct crocksdb_ingestexternalfileoptions_t
     crocksdb_ingestexternalfileoptions_t;
+typedef struct crocksdb_ingestexternalfilearg_t
+    crocksdb_ingestexternalfilearg_t;
 typedef struct crocksdb_sstfilereader_t crocksdb_sstfilereader_t;
 typedef struct crocksdb_sstfilewriter_t crocksdb_sstfilewriter_t;
 typedef struct crocksdb_externalsstfileinfo_t crocksdb_externalsstfileinfo_t;
@@ -1948,6 +1950,10 @@ extern C_ROCKSDB_LIBRARY_API unsigned char
 crocksdb_ingest_external_file_optimized(
     crocksdb_t* db, crocksdb_column_family_handle_t* handle,
     const char* const* file_list, const size_t list_len,
+    const crocksdb_ingestexternalfileoptions_t* opt, char** errptr);
+extern C_ROCKSDB_LIBRARY_API void crocksdb_ingest_external_files(
+    crocksdb_t* db,
+    const crocksdb_ingestexternalfilearg_t* file_list, const size_t list_len,
     const crocksdb_ingestexternalfileoptions_t* opt, char** errptr);
 
 /* SliceTransform */

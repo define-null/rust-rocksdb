@@ -15,7 +15,7 @@
 use crocksdb_ffi::{
     self, DBBackupEngine, DBCFHandle, DBCache, DBCompressionType, DBEnv, DBInstance, DBMapProperty,
     DBPinnableSlice, DBPostWriteCallback, DBSequentialFile, DBTablePropertiesCollection,
-    DBTitanDBOptions, DBWriteBatch,
+    DBTitanDBOptions, DBWriteBatch, IngestExternalFileArg,
 };
 use libc::{self, c_char, c_int, c_void, size_t};
 use librocksdb_sys::DBMemoryAllocator;
@@ -1794,6 +1794,34 @@ impl DB {
                 cf.inner,
                 c_files_ptrs.as_ptr(),
                 c_files_ptrs.len(),
+                opt.inner
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn ingest_external_files<'a>(
+        &self,
+        files: impl IntoIterator<Item = (&'a CFHandle, impl AsRef<str>)>,
+        opt: &IngestExternalFileOptions,
+    ) -> Result<(), String> {
+        let files = files.into_iter();
+        let size_hint = files.size_hint().0;
+        let mut c_paths = Vec::with_capacity(size_hint);
+        let mut c_files = Vec::with_capacity(size_hint);
+        for (cf, path) in files {
+            let c_path = CString::new(path.as_ref()).unwrap();
+            c_files.push(IngestExternalFileArg {
+                cf_handle: cf.inner,
+                file_path: c_path.as_ptr(),
+            });
+            c_paths.push(c_path);
+        }
+        unsafe {
+            ffi_try!(crocksdb_ingest_external_files(
+                self.inner,
+                c_files.as_ptr(),
+                c_files.len(),
                 opt.inner
             ));
         }

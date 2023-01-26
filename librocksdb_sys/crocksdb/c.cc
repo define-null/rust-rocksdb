@@ -4873,6 +4873,30 @@ unsigned char crocksdb_ingest_external_file_optimized(
   return has_flush;
 }
 
+struct crocksdb_ingestexternalfilearg_t {
+  crocksdb_column_family_handle_t* handle;
+  char* file;
+};
+
+void crocksdb_ingest_external_files(
+    crocksdb_t* db,
+    const crocksdb_ingestexternalfilearg_t* file_list, const size_t list_len,
+    const crocksdb_ingestexternalfileoptions_t* opt, char** errptr) {
+  std::vector<rocksdb::IngestExternalFileArg> files_vec;
+  for (size_t i = 0; i < list_len; ++i) {
+    auto column_family = file_list[i].handle->rep;
+    auto file = std::string(file_list[i].file);
+    if (files_vec.empty() || files_vec.back().column_family != column_family) {
+      rocksdb::IngestExternalFileArg arg;
+      arg.column_family = column_family;
+      arg.options = opt->rep;
+      files_vec.emplace_back(arg);
+    }
+    files_vec.back().external_files.emplace_back(file);
+  }
+  SaveError(errptr, db->rep->IngestExternalFiles(files_vec));
+}
+
 crocksdb_slicetransform_t* crocksdb_slicetransform_create(
     void* state, void (*destructor)(void*),
     char* (*transform)(void*, const char* key, size_t length,
