@@ -285,6 +285,33 @@ fn read_with_upper_bound() {
 }
 
 #[test]
+fn refresh() {
+    let path = tempdir_with_prefix("_rust_rocksdb_read_with_upper_bound_test");
+    let mut opts = DBOptions::new();
+    opts.create_if_missing(true);
+    {
+        let db = DB::open(opts, path.path().to_str().unwrap()).unwrap();
+        let writeopts = WriteOptions::new();
+        db.put_opt(b"k1-0", b"a", &writeopts).unwrap();
+        db.put_opt(b"k1-1", b"b", &writeopts).unwrap();
+        db.put_opt(b"k2-0", b"c", &writeopts).unwrap();
+
+        let mut readopts = ReadOptions::new();
+        let upper_bound = b"k2".to_vec();
+        readopts.set_iterate_upper_bound(upper_bound);
+        assert_eq!(readopts.iterate_upper_bound(), b"k2");
+        let mut iter = db.iter_opt(readopts);
+        iter.seek(SeekKey::Start).unwrap();
+        let vec = next_collect(&mut iter);
+        assert_eq!(vec.len(), 2);
+        iter.refresh().unwrap();
+        iter.seek(SeekKey::Start).unwrap();
+        let vec = next_collect(&mut iter);
+        assert_eq!(vec.len(), 2);
+    }
+}
+
+#[test]
 fn test_total_order_seek() {
     let path = tempdir_with_prefix("_rust_rocksdb_total_order_seek");
     let mut bbto = BlockBasedOptions::new();

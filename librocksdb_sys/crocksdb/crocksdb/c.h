@@ -618,6 +618,7 @@ extern C_ROCKSDB_LIBRARY_API void crocksdb_repair_db(
 /* Iterator */
 
 extern C_ROCKSDB_LIBRARY_API void crocksdb_iter_destroy(crocksdb_iterator_t*);
+extern C_ROCKSDB_LIBRARY_API void crocksdb_iter_refresh(crocksdb_iterator_t* iter, char** errptr);
 extern C_ROCKSDB_LIBRARY_API unsigned char crocksdb_iter_valid(
     const crocksdb_iterator_t*);
 extern C_ROCKSDB_LIBRARY_API void crocksdb_iter_seek_to_first(

@@ -237,6 +237,13 @@ impl<D: Deref<Target = DB>> DBIterator<D> {
 }
 
 impl<D> DBIterator<D> {
+    pub fn refresh(&self) -> Result<(), String> {
+        unsafe {
+            ffi_try!(crocksdb_iter_refresh(self.inner));
+        }
+        Ok(())
+    }
+
     pub fn seek(&mut self, key: SeekKey) -> Result<bool, String> {
         unsafe {
             match key {

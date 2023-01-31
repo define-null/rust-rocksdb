@@ -1581,6 +1581,10 @@ void crocksdb_iter_destroy(crocksdb_iterator_t* iter) {
   delete iter;
 }
 
+void crocksdb_iter_refresh(crocksdb_iterator_t* iter, char** errptr) {
+  SaveError(errptr, iter->rep->Refresh());
+}
+
 unsigned char crocksdb_iter_valid(const crocksdb_iterator_t* iter) {
   return iter->rep->Valid();
 }
