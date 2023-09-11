@@ -38,6 +38,7 @@ use std::ffi::{CStr, CString};
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use table_filter::{destroy_table_filter, table_filter, TableFilter};
 use table_properties_collector_factory::{
     new_table_properties_collector_factory, TablePropertiesCollectorFactory,
@@ -124,6 +125,22 @@ impl BlockBasedOptions {
             };
 
             crocksdb_ffi::crocksdb_block_based_options_set_filter_policy(self.inner, bloom);
+        }
+    }
+
+    pub fn set_ribbon_filter(&mut self, bits_per_key: f64, bloom_before_level: i32) {
+        unsafe {
+            let filter =
+                crocksdb_ffi::crocksdb_filterpolicy_create_ribbon(bits_per_key, bloom_before_level);
+            crocksdb_ffi::crocksdb_block_based_options_set_filter_policy(self.inner, filter);
+        }
+    }
+
+    pub fn set_optimize_filters_for_memory(&mut self, v: bool) {
+        unsafe {
+            crocksdb_ffi::crocksdb_block_based_options_set_optimize_filters_for_memory(
+                self.inner, v as u8,
+            );
         }
     }
 
@@ -440,6 +457,26 @@ impl WriteBufferManager {
             }
         }
     }
+
+    pub fn set_flush_size(&self, s: usize) {
+        unsafe {
+            crocksdb_ffi::crocksdb_write_buffer_manager_set_flush_size(self.inner, s);
+        }
+    }
+
+    pub fn flush_size(&self) -> usize {
+        unsafe { crocksdb_ffi::crocksdb_write_buffer_manager_flush_size(self.inner) }
+    }
+
+    pub fn set_flush_oldest_first(&self, f: bool) {
+        unsafe {
+            crocksdb_ffi::crocksdb_write_buffer_manager_set_flush_oldest_first(self.inner, f);
+        }
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        unsafe { crocksdb_ffi::crocksdb_write_buffer_manager_memory_usage(self.inner) }
+    }
 }
 
 impl Drop for WriteBufferManager {
@@ -464,6 +501,12 @@ impl ConcurrentTaskLimiter {
             Self {
                 inner: crocksdb_ffi::crocksdb_concurrent_task_limiter_create(name.as_ptr(), limit),
             }
+        }
+    }
+
+    pub fn set_limit(&self, limit: u32) {
+        unsafe {
+            crocksdb_ffi::crocksdb_concurrent_task_limiter_set_limit(self.inner, limit);
         }
     }
 }
@@ -494,6 +537,11 @@ impl UnsafeSnap {
 
     pub unsafe fn get_inner(&self) -> *const DBSnapshot {
         self.inner
+    }
+
+    /// Get the snapshot's sequence number.
+    pub unsafe fn get_sequence_number(&self) -> u64 {
+        crocksdb_ffi::crocksdb_get_snapshot_sequence_number(self.get_inner())
     }
 }
 
@@ -1105,6 +1153,12 @@ impl DBOptions {
         }
     }
 
+    pub fn set_stats_persist_period_sec(&mut self, n: u32) {
+        unsafe {
+            crocksdb_ffi::crocksdb_options_set_stats_persist_period_sec(self.inner, n);
+        }
+    }
+
     pub fn set_db_log_dir(&mut self, path: &str) {
         let path = CString::new(path.as_bytes()).unwrap();
         unsafe {
@@ -1182,6 +1236,16 @@ impl DBOptions {
             None
         } else {
             Some(RateLimiter { inner: limiter })
+        }
+    }
+
+    pub fn get_write_buffer_manager(&self) -> Option<WriteBufferManager> {
+        let manager =
+            unsafe { crocksdb_ffi::crocksdb_options_get_write_buffer_manager(self.inner) };
+        if manager.is_null() {
+            None
+        } else {
+            Some(WriteBufferManager { inner: manager })
         }
     }
 
@@ -1276,6 +1340,12 @@ impl DBOptions {
     pub fn set_atomic_flush(&self, enable: bool) {
         unsafe {
             crocksdb_ffi::crocksdb_options_set_atomic_flush(self.inner, enable);
+        }
+    }
+
+    pub fn avoid_flush_during_recovery(&self, avoid: bool) {
+        unsafe {
+            crocksdb_ffi::crocksdb_options_avoid_flush_during_recovery(self.inner, avoid);
         }
     }
 
@@ -1478,6 +1548,16 @@ impl ColumnFamilyOptions {
     pub fn set_compaction_thread_limiter(&mut self, limiter: &ConcurrentTaskLimiter) {
         unsafe {
             crocksdb_ffi::crocksdb_options_set_compaction_thread_limiter(self.inner, limiter.inner);
+        }
+    }
+
+    pub fn get_compaction_thread_limiter(&self) -> Option<ConcurrentTaskLimiter> {
+        let limiter =
+            unsafe { crocksdb_ffi::crocksdb_options_get_compaction_thread_limiter(self.inner) };
+        if limiter.is_null() {
+            None
+        } else {
+            Some(ConcurrentTaskLimiter { inner: limiter })
         }
     }
 
@@ -1728,6 +1808,12 @@ impl ColumnFamilyOptions {
     pub fn set_target_file_size_base(&mut self, size: u64) {
         unsafe {
             crocksdb_ffi::crocksdb_options_set_target_file_size_base(self.inner, size);
+        }
+    }
+
+    pub fn set_target_file_size_multiplier(&mut self, multiplier: i32) {
+        unsafe {
+            crocksdb_ffi::crocksdb_options_set_target_file_size_multiplier(self.inner, multiplier)
         }
     }
 
@@ -1984,6 +2070,42 @@ impl ColumnFamilyOptions {
             );
         }
     }
+
+    pub fn set_ttl(&mut self, ttl_secs: u64) {
+        unsafe {
+            crocksdb_ffi::crocksdb_options_set_ttl(self.inner, ttl_secs);
+        }
+    }
+
+    pub fn get_ttl(&self) -> u64 {
+        unsafe { crocksdb_ffi::crocksdb_options_get_ttl(self.inner) }
+    }
+
+    pub fn set_periodic_compaction_seconds(&mut self, secs: u64) {
+        unsafe {
+            crocksdb_ffi::crocksdb_options_set_periodic_compaction_seconds(self.inner, secs);
+        }
+    }
+
+    pub fn get_periodic_compaction_seconds(&self) -> u64 {
+        unsafe { crocksdb_ffi::crocksdb_options_get_periodic_compaction_seconds(self.inner) }
+    }
+
+    pub fn set_write_buffer_manager(&mut self, wbm: &WriteBufferManager) {
+        unsafe {
+            crocksdb_ffi::crocksdb_options_set_cf_write_buffer_manager(self.inner, wbm.inner);
+        }
+    }
+
+    pub fn get_write_buffer_manager(&mut self) -> Option<WriteBufferManager> {
+        let manager =
+            unsafe { crocksdb_ffi::crocksdb_options_get_cf_write_buffer_manager(self.inner) };
+        if manager.is_null() {
+            None
+        } else {
+            Some(WriteBufferManager { inner: manager })
+        }
+    }
 }
 
 // ColumnFamilyDescriptor is a pair of column family's name and options.
@@ -2069,15 +2191,17 @@ pub struct FlushOptions {
     pub(crate) inner: *mut DBFlushOptions,
 }
 
-impl FlushOptions {
-    pub fn new() -> FlushOptions {
+impl Default for FlushOptions {
+    fn default() -> Self {
         unsafe {
-            FlushOptions {
+            Self {
                 inner: crocksdb_ffi::crocksdb_flushoptions_create(),
             }
         }
     }
+}
 
+impl FlushOptions {
     pub fn set_wait(&mut self, wait: bool) {
         unsafe {
             crocksdb_ffi::crocksdb_flushoptions_set_wait(self.inner, wait);
@@ -2087,6 +2211,19 @@ impl FlushOptions {
     pub fn set_allow_write_stall(&mut self, allow: bool) {
         unsafe {
             crocksdb_ffi::crocksdb_flushoptions_set_allow_write_stall(self.inner, allow);
+        }
+    }
+
+    pub fn set_expected_oldest_key_time(&mut self, time: SystemTime) {
+        let time = time.duration_since(UNIX_EPOCH).unwrap().as_secs();
+        unsafe {
+            crocksdb_ffi::crocksdb_flushoptions_set_expected_oldest_key_time(self.inner, time);
+        }
+    }
+
+    pub fn set_check_if_compaction_disabled(&mut self, check: bool) {
+        unsafe {
+            crocksdb_ffi::crocksdb_flushoptions_set_check_if_compaction_disabled(self.inner, check);
         }
     }
 }
@@ -2334,6 +2471,22 @@ impl Drop for LRUCacheOptions {
     fn drop(&mut self) {
         unsafe {
             crocksdb_ffi::crocksdb_lru_cache_options_destroy(self.inner);
+        }
+    }
+}
+
+pub struct MergeInstanceOptions {
+    pub merge_memtable: bool,
+    pub allow_source_write: bool,
+    pub max_preload_files: i32,
+}
+
+impl Default for MergeInstanceOptions {
+    fn default() -> Self {
+        Self {
+            merge_memtable: false,
+            allow_source_write: true,
+            max_preload_files: 16,
         }
     }
 }

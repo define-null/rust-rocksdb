@@ -76,7 +76,7 @@ fn main() {
     let mut build = build_rocksdb();
 
     build.cpp(true).file("crocksdb/c.cc");
-    if !cfg!(target_os = "windows") {
+    if env::var("CARGO_CFG_TARGET_OS").unwrap() != "windows" {
         build.flag("-std=c++11");
         build.flag("-fno-rtti");
     }
@@ -128,6 +128,7 @@ fn link_cpp(build: &mut Build) {
 
 fn build_rocksdb() -> Build {
     let target = env::var("TARGET").expect("TARGET was not set");
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     let mut cfg = Config::new("rocksdb");
     if cfg!(feature = "encryption") {
         cfg.register_dep("OPENSSL").define("WITH_OPENSSL", "ON");
@@ -172,7 +173,7 @@ fn build_rocksdb() -> Build {
         .build();
     let build_dir = format!("{}/build", dst.display());
     let mut build = Build::new();
-    if cfg!(target_os = "windows") {
+    if target_os == "windows" {
         let profile = match &*env::var("PROFILE").unwrap_or_else(|_| "debug".to_owned()) {
             "bench" | "release" => "Release",
             _ => "Debug",
@@ -183,9 +184,9 @@ fn build_rocksdb() -> Build {
         println!("cargo:rustc-link-search=native={}", build_dir);
         build.define("ROCKSDB_PLATFORM_POSIX", None);
     }
-    if cfg!(target_os = "macos") {
+    if target_os == "macos" {
         build.define("OS_MACOSX", None);
-    } else if cfg!(target_os = "freebsd") {
+    } else if target_os == "freebsd" {
         build.define("OS_FREEBSD", None);
     }
 
@@ -215,6 +216,10 @@ fn build_rocksdb() -> Build {
     println!(
         "cargo:rerun-if-changed={}",
         cur_dir.join("crocksdb").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        cur_dir.join("rocksdb").display()
     );
     build
 }

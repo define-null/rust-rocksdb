@@ -31,8 +31,8 @@ extern crate lazy_static;
 
 pub use checkpoint::Checkpointer;
 pub use compaction_filter::{
-    new_compaction_filter, new_compaction_filter_factory, new_compaction_filter_raw,
-    CompactionFilter, CompactionFilterContext, CompactionFilterDecision, CompactionFilterFactory,
+    new_compaction_filter, new_compaction_filter_factory, CompactionFilter,
+    CompactionFilterContext, CompactionFilterDecision, CompactionFilterFactory,
     CompactionFilterFactoryHandle, CompactionFilterHandle, CompactionFilterValueType,
     DBCompactionFilter,
 };
@@ -66,8 +66,8 @@ pub use rocksdb::{
 pub use rocksdb_options::{
     BlockBasedOptions, CColumnFamilyDescriptor, ColumnFamilyOptions, CompactOptions,
     CompactionOptions, ConcurrentTaskLimiter, DBOptions, EnvOptions, FifoCompactionOptions,
-    HistogramData, IngestExternalFileOptions, LRUCacheOptions, RateLimiter, ReadOptions,
-    RestoreOptions, Statistics, WriteBufferManager, WriteOptions,
+    FlushOptions, HistogramData, IngestExternalFileOptions, LRUCacheOptions, MergeInstanceOptions,
+    RateLimiter, ReadOptions, RestoreOptions, Statistics, WriteBufferManager, WriteOptions,
 };
 pub use slice_transform::SliceTransform;
 pub use sst_partitioner::{
